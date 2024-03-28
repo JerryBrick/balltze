@@ -12,8 +12,6 @@ namespace Balltze::Plugins {
     }
 
     int lua_meta_object__eq(lua_State *state) noexcept {
-        logger.warning("Comparing two meta objects.");
-
         // this may never happen due getequalhandler function
         if(!lua_istable(state, 1) || !lua_istable(state, 2)) { 
             lua_pushboolean(state, false);
