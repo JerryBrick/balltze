@@ -258,9 +258,9 @@ namespace Balltze::Event {
             if(!render_widget_background_function_call_sig) {
                 throw std::runtime_error("Could not find signature for widget background render event");
             }
-            auto *address = Memory::follow_32bit_jump(render_widget_background_function_call_sig->data()) + 5;
+            // auto *address = Memory::follow_32bit_jump(render_widget_background_function_call_sig->data()) + 5;
             auto before_dispatcher = std::function<bool()>(widget_background_render_event_before_dispatcher_asm);
-            Memory::hook_function(address, before_dispatcher, widget_background_render_event_after_dispatcher_asm);
+            Memory::hook_function(render_widget_background_function_call_sig->data(), before_dispatcher, widget_background_render_event_after_dispatcher_asm);
 
             widget_background_render_event_init_tick_event_handle.remove();
         });
