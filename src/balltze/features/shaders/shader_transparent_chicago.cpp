@@ -12,6 +12,7 @@
 
 namespace Balltze::Features {
     using Engine::TagDefinitions::ShaderTransparentChicago;
+    using Engine::TagDefinitions::Bitmap;
 
     struct TransparentGeometryGroup {
         float field0_0x0;
@@ -169,14 +170,28 @@ namespace Balltze::Features {
                 }
             }
 
-            device->SetRenderState(D3DRS_CULLMODE, ~(std::uint32_t)(*reinterpret_cast<std::uint32_t *>(&shader_data->shader_transparent_chicago_flags) >> 1) & 2 | 1);
+            auto flags = *reinterpret_cast<std::uint32_t *>(&shader_data->shader_transparent_chicago_flags);
+
+            device->SetRenderState(D3DRS_CULLMODE, ~(std::uint32_t)(flags >> 1) & 2 | 1);
             device->SetRenderState(D3DRS_COLORWRITEENABLE, 7);
             device->SetRenderState(D3DRS_ALPHABLENDENABLE, 1);
-            device->SetRenderState(D3DRS_ALPHATESTENABLE, *reinterpret_cast<std::uint32_t *>(&shader_data->shader_transparent_chicago_flags) & 1);
+            device->SetRenderState(D3DRS_ALPHATESTENABLE, flags & 1);
             device->SetRenderState(D3DRS_ALPHAREF, 0x7f);
             device->SetRenderState(D3DRS_FOGENABLE, 0);
 
             FUN_0051be80(shader_data->framebuffer_blend_function);
+
+            if(flags < 0 && transparent_geometry_group->field90_0x74 != 0.0f && shader_data->maps.count > 0) {
+                auto *bitmap_tag = Engine::get_tag(shader_data->maps.offset[0].map.tag_handle);
+                if(bitmap_tag) {
+                    auto *bitmap_data = reinterpret_cast<Bitmap *>(bitmap_tag->data);
+                    auto bitmap_count = bitmap_data->bitmap_data.count;
+                    auto extra_flags = *reinterpret_cast<std::uint32_t *>(&shader_data->extra_flags);
+                    if(extra_flags & 2 == 0) {
+                        float numeric_count_limit = shader_data->numeric_counter_limit;
+                    }
+                }
+            }
 
             // if ((*(byte *)((int)fVar2 + 0x60) & 2) == 0)
             //     {
