@@ -7,6 +7,7 @@ FUN_00543160: .long 0x00543160
 FUN_0051be80: .long 0x0051be80
 FUN_005c8b40: .long 0x005c8b40
 FUN_0051c060: .long 0x0051c060
+FUN_00536740: .long 0x00536740
 
 .text
 
@@ -52,3 +53,10 @@ _FUN_0051c060:
     add esp, 0x10
     ret
 
+.globl _rasterizer_transparent_geometry_group_draw
+_rasterizer_transparent_geometry_group_draw:
+    push [esp + 0x8]
+    push [esp + 0x8]
+    call dword ptr FUN_00536740
+    add esp, 8
+    ret

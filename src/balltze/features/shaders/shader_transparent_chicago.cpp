@@ -13,19 +13,102 @@
 namespace Balltze::Features {
     using Engine::TagDefinitions::ShaderTransparentChicago;
 
-    #pragma pack(push)
-    #pragma pack(1)
-
     struct TransparentGeometryGroup {
-        std::uint16_t flags;
-        PADDING(0xA);
-        ShaderTransparentChicago *shader_data;
-        std::uint16_t model_effect_type;
-        PADDING(0x78);
+        float field0_0x0;
+        struct TransparentGeometryGroup *field0_0x4;
+        char field2_0x8;
+        char field3_0x9;
+        char field4_0xa;
+        char field5_0xb;
+        std::byte *shader_tag_data;
+        unsigned short field7_0x10;
+        char field8_0x12;
+        char field9_0x13;
+        short field10_0x14;
+        char field11_0x16;
+        char field12_0x17;
+        float field13_0x18;
+        char field14_0x1c;
+        char field15_0x1d;
+        char field16_0x1e;
+        char field17_0x1f;
+        char field18_0x20;
+        char field19_0x21;
+        char field20_0x22;
+        char field21_0x23;
+        char field22_0x24;
+        char field23_0x25;
+        char field24_0x26;
+        char field25_0x27;
+        char field26_0x28;
+        char field27_0x29;
+        char field28_0x2a;
+        char field29_0x2b;
+        char field30_0x2c;
+        char field31_0x2d;
+        char field32_0x2e;
+        char field33_0x2f;
+        char field34_0x30;
+        char field35_0x31;
+        char field36_0x32;
+        char field37_0x33;
+        char field38_0x34;
+        char field39_0x35;
+        char field40_0x36;
+        char field41_0x37;
+        char field42_0x38;
+        char field43_0x39;
+        char field44_0x3a;
+        char field45_0x3b;
+        float field46_0x3c;
+        float field47_0x40;
+        char field48_0x44;
+        char field49_0x45;
+        char field50_0x46;
+        char field51_0x47;
+        char field52_0x48;
+        char field53_0x49;
+        char field54_0x4a;
+        char field55_0x4b;
+        char field56_0x4c;
+        char field57_0x4d;
+        char field58_0x4e;
+        char field59_0x4f;
+        char field60_0x50;
+        char field61_0x51;
+        char field62_0x52;
+        char field63_0x53;
+        int stage; 
+        short *field65_0x58;
+        char field66_0x5c;
+        char field67_0x5d;
+        char field68_0x5e;
+        char field69_0x5f;
+        char field70_0x60;
+        char field71_0x61;
+        char field72_0x62;
+        char field73_0x63;
+        char field74_0x64;
+        char field75_0x65;
+        char field76_0x66;
+        char field77_0x67;
+        char field78_0x68;
+        char field79_0x69;
+        char field80_0x6a;
+        char field81_0x6b;
+        char field82_0x6c;
+        char field83_0x6d;
+        char field84_0x6e;
+        char field85_0x6f;
+        char field86_0x70;
+        char field87_0x71;
+        char field88_0x72;
+        char field89_0x73;
+        float field90_0x74;
+        float field91_0x78;
+        char field92_0x79[44];
     };
-    static_assert(sizeof(TransparentGeometryGroup) == 0x8A);
-
-    #pragma pack(pop)
+    static_assert(sizeof(TransparentGeometryGroup) == 0xA8);
 
     static IDirect3DDevice9 *device = nullptr;
     static auto *transparent_geometry_group_count = reinterpret_cast<std::uint32_t *>(0x00df5fa4);
@@ -39,65 +122,61 @@ namespace Balltze::Features {
         double FUN_005c8b40(double param_1);
         bool FUN_0051c060(short texture_stage, short bitmap_data_type, short bitmap_data_index, short unknown);
         void FUN_00543250 (void *texture_animation, float param_1, float param_2, float param_3, float param_4, float param_5, float param_6);
+
+        void rasterizer_transparent_geometry_group_draw(TransparentGeometryGroup *group, std::uint32_t *param_2);
     
         void draw_shader_transparent_chicago(TransparentGeometryGroup *transparent_geometry_group, std::uint32_t *param_2) {
             if(!device) {
                 return;
             }
             
-            auto *shader_data = transparent_geometry_group->shader_data;
-            short sVar5 = FUN_00543160(shader_data);
+            auto *shader_data = reinterpret_cast<ShaderTransparentChicago *>(transparent_geometry_group->shader_tag_data);
+            short unknown_type = FUN_00543160(shader_data);
+            
             short texture_stage = -1;
-            if(*(short **)(transparent_geometry_group + 0x16) == nullptr) {
-                if(*(int *)(transparent_geometry_group + 0x15) != -1) {
-                    texture_stage = *(short *)(0x00674908 + *(int *)(transparent_geometry_group + 0x15) * 0x10);
+            if(transparent_geometry_group->field65_0x58 == nullptr) {
+                if(transparent_geometry_group->stage != -1) {
+                    texture_stage = reinterpret_cast<short *>(0x00674908)[transparent_geometry_group->stage * 8];
                 }
             }
             else {
-                texture_stage = **(short **)(transparent_geometry_group + 0x16);
+                texture_stage = *transparent_geometry_group->field65_0x58;
             }
-            short local_f0 = *(short *)(transparent_geometry_group + 0x4);
-            if(*(int *)((int)shader_data + 0x58) == 0) {
+
+            short local_f0 = transparent_geometry_group->field7_0x10;
+            
+            auto *maps_elements = shader_data->maps.offset;
+            if(maps_elements == nullptr) {
                 return;
             }
-            if(*(int *)(*(int *)((int)shader_data + 0x58) + 0x70) == 0) {
+            if(maps_elements->map.path == 0) {
                 return;
             }
 
-            device->SetVertexShader((IDirect3DVertexShader9 *)(0x00639248 + (*(short *)(0x00639450 + ((int)sVar5 + texture_stage * 6) * 2) * 2)));
+            device->SetVertexShader((IDirect3DVertexShader9 *)(0x00639248 + (*(short *)(0x00639450 + (unknown_type + texture_stage * 6) * 2) * 2)));
             device->SetVertexDeclaration((IDirect3DVertexDeclaration9 *)(0x0067ca50 + (texture_stage * 3)));
             device->SetPixelShader(nullptr);
-
-            float vertex_shader_constants[38];
-            
             texture_stage = 0;
-            if (0 < *(int *)((int)shader_data + 0x48)) { // Untested block
-                int iVar6 = 0;
-                do {
-                    int iVar4 = *(int *)((int)shader_data + 0x4c);
-                    float *pfVar10 = transparent_geometry_group;
-                    float *pfVar12 = vertex_shader_constants;
-                    for(int iVar7 = 0x2a; iVar7 != 0; iVar7 = iVar7 + -1) {
-                        *pfVar12 = *pfVar10;
-                        pfVar10 = pfVar10 + 1;
-                        pfVar12 = pfVar12 + 1;
-                    }
-                    int uStack20 = -1;
-                    vertex_shader_constants[3] = *(float *)((*(unsigned int *)(iVar6 * 0x10 + 0xc + iVar4) & 0xffff) * 0x20 + 0x14 + *reinterpret_cast<std::uint32_t *>(0x00817144));
-                    // FUN_00536740();
-                    texture_stage = texture_stage + 1;
-                    iVar6 = (int)texture_stage;
-                } while (iVar6 < *(int *)((int)shader_data + 0x48));
+
+            for(int i = 0; i < shader_data->extra_layers.count; i++) {
+                TransparentGeometryGroup group_copy;
+                auto *extra_layer_elements = shader_data->extra_layers.offset;
+                memcpy(&group_copy, transparent_geometry_group, sizeof(TransparentGeometryGroup));
+                auto *extra_layer_shader_tag = Engine::get_tag(extra_layer_elements[i].shader.tag_handle);
+                if(extra_layer_shader_tag) {
+                    group_copy.shader_tag_data = extra_layer_shader_tag->data;
+                    rasterizer_transparent_geometry_group_draw(&group_copy, param_2);
+                }
             }
 
-            device->SetRenderState(D3DRS_CULLMODE, ~(unsigned int)(*(byte *)((int)shader_data + 0x29) >> 1) & 2 | 1);
+            device->SetRenderState(D3DRS_CULLMODE, ~(std::uint32_t)(*reinterpret_cast<std::uint32_t *>(&shader_data->shader_transparent_chicago_flags) >> 1) & 2 | 1);
             device->SetRenderState(D3DRS_COLORWRITEENABLE, 7);
             device->SetRenderState(D3DRS_ALPHABLENDENABLE, 1);
-            device->SetRenderState(D3DRS_ALPHATESTENABLE, *(byte *)((int)shader_data + 0x29) & 1);
+            device->SetRenderState(D3DRS_ALPHATESTENABLE, *reinterpret_cast<std::uint32_t *>(&shader_data->shader_transparent_chicago_flags) & 1);
             device->SetRenderState(D3DRS_ALPHAREF, 0x7f);
             device->SetRenderState(D3DRS_FOGENABLE, 0);
 
-            FUN_0051be80(*reinterpret_cast<short *>(*reinterpret_cast<float **>(shader_data) + 0xB));
+            FUN_0051be80(shader_data->framebuffer_blend_function);
 
             // if ((*(byte *)((int)fVar2 + 0x60) & 2) == 0)
             //     {
