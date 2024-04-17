@@ -17,6 +17,7 @@ namespace Balltze::Features {
     void set_up_extended_limits();
     void set_up_echo_message_command();
     void set_up_menu_widescreen_override() noexcept;
+    void set_up_shader_transparent_chicago_impl();
 
     inline void set_up_features() {
         try {
@@ -32,7 +33,8 @@ namespace Balltze::Features {
                     set_up_sound_subtitles();
                     set_up_tag_data_importing();
                     set_up_loading_screen();
-                    set_up_map_textures_preloading();                    
+                    set_up_map_textures_preloading();
+                    set_up_shader_transparent_chicago_impl();
                     break;
                 }
             }

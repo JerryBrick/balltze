@@ -22,6 +22,16 @@ namespace Balltze::Engine {
         return *resolution;
     }
 
+    IDirect3DDevice9 **get_d3d9_device() noexcept {
+        static auto *device_sig = Memory::get_signature("d3d9_device_pointer");
+        static IDirect3DDevice9 **device = *reinterpret_cast<IDirect3DDevice9 ***>(device_sig->data());
+        return device;
+    }
+
+    VertexShader *get_vertex_shader(const char *name) {
+        
+    }
+
     extern "C" {
         void *load_bitmap_function_address = nullptr;
         IDirect3DTexture9 *load_bitmap_asm(TagDefinitions::BitmapData *bitmap_data, bool immediate, bool force_pixels_read);

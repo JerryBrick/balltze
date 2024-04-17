@@ -41,9 +41,28 @@ namespace Balltze::Engine {
 
     /**
      * Get the current resolution of the game.
-     * @return Return the current resolution.
+     * @return Current resolution.
      */
     BALLTZE_API Resolution &get_resolution() noexcept;
+
+    /**
+     * Get the pointer to the Direct3D device.
+     * @return Pointer to D3D9 device
+     */
+    BALLTZE_API IDirect3DDevice9 **get_d3d9_device() noexcept;
+
+    struct PixelShader {
+        IDirect3DPixelShader9 *shader;
+        PADDING(8);
+        const char *name;
+    };
+
+    struct VertexShader {
+        IDirect3DVertexShader9* shader;
+        const char *filepath;
+    };
+
+    VertexShader *get_vertex_shader(const char *name);
 
     /**
      * This struct represents one of those render targets.
