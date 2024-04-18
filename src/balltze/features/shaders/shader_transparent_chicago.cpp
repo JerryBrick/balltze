@@ -13,6 +13,7 @@
 namespace Balltze::Features {
     using Engine::TagDefinitions::ShaderTransparentChicago;
     using Engine::TagDefinitions::Bitmap;
+    using Engine::TagDefinitions::BitmapDataType;
 
     struct TransparentGeometryGroup {
         float field0_0x0;
@@ -105,7 +106,7 @@ namespace Balltze::Features {
         char field87_0x71;
         char field88_0x72;
         char field89_0x73;
-        float field90_0x74;
+        int *field90_0x74;
         float field91_0x78;
         char field92_0x79[44];
     };
@@ -121,10 +122,16 @@ namespace Balltze::Features {
         int FUN_00543160(ShaderTransparentChicago *shader_data);
         int FUN_0051be80(short param_1);
         double FUN_005c8b40(double param_1);
+        int FUN_005434c0(int param_1);
+
         bool FUN_0051c060(short texture_stage, short bitmap_data_type, short bitmap_data_index, short unknown);
-        void FUN_00543250 (void *texture_animation, float param_1, float param_2, float param_3, float param_4, float param_5, float param_6);
+        
+        void FUN_00543250(std::byte* tex_anim, float map_v_scale, float map_v_scalez, float map_u_offset, float map_v_offset, float map_rotation, float param_7, unsigned int param_8, float * param_9, float * param_10);
 
         void rasterizer_transparent_geometry_group_draw(TransparentGeometryGroup *group, std::uint32_t *param_2);
+        void rasterizer_set_texture_bitmap(short texture_stage, BitmapDataType bitmap_type, short bitmap_data_index, short param_4, Engine::TagHandle bitmap_tag_handle);
+
+        void FUN_0053ae90(std::byte *shader_data);
     
         void draw_shader_transparent_chicago(TransparentGeometryGroup *transparent_geometry_group, std::uint32_t *param_2) {
             if(!device) {
@@ -181,7 +188,8 @@ namespace Balltze::Features {
 
             FUN_0051be80(shader_data->framebuffer_blend_function);
 
-            if(flags < 0 && transparent_geometry_group->field90_0x74 != 0.0f && shader_data->maps.count > 0) {
+            int unknown_bitmap_data_val;
+            if(flags < 0 && transparent_geometry_group->field90_0x74 != nullptr && shader_data->maps.count > 0) {
                 auto *bitmap_tag = Engine::get_tag(shader_data->maps.offset[0].map.tag_handle);
                 if(bitmap_tag) {
                     auto *bitmap_data = reinterpret_cast<Bitmap *>(bitmap_tag->data);
@@ -189,174 +197,185 @@ namespace Balltze::Features {
                     auto extra_flags = *reinterpret_cast<std::uint32_t *>(&shader_data->extra_flags);
                     if(extra_flags & 2 == 0) {
                         float numeric_count_limit = shader_data->numeric_counter_limit;
+                        short unknown_val = (((bitmap_count != 8 ? 1 : 0) - 1) & 3) * 4; // weird
+                        float res = FUN_005c8b40(numeric_count_limit * static_cast<float>(transparent_geometry_group->field90_0x74[1] + unknown_val) + 0.5f);
+                        if(round(res) < 0) {
+                            res = 0;
+                        }
+                        else {
+                            res = FUN_005c8b40(numeric_count_limit * static_cast<float>(transparent_geometry_group->field90_0x74[1] + unknown_val) + 0.5f);
+                            if(round(res) <= numeric_count_limit) {
+                                res = FUN_005c8b40(numeric_count_limit * static_cast<float>(transparent_geometry_group->field90_0x74[1] + unknown_val) + 0.5f);
+                                numeric_count_limit = round(res);
+                            }
+                        }
+
+                        short unknown_bitmap_val = numeric_count_limit;
+                        if(transparent_geometry_group->field7_0x10 > 0) {
+                            auto i = transparent_geometry_group->field7_0x10;
+                            do {
+                                numeric_count_limit = numeric_count_limit / bitmap_count;
+                                unknown_bitmap_val = numeric_count_limit;
+                                i--;
+                            } while(i != 0);
+                        }
+                        unknown_bitmap_data_val = unknown_bitmap_val % bitmap_count;
+                    }
+                    else {
+                        unknown_bitmap_data_val = FUN_005434c0(transparent_geometry_group->field7_0x10);
                     }
                 }
             }
 
-            // if ((*(byte *)((int)fVar2 + 0x60) & 2) == 0)
-            //     {
-            //         iVar4 = (int)(short)(ushort) * (byte *)((int)fVar2 + 0x28);
-            //         fVar11 = (float10)FUN_005c8b40();
-            //         fStack244 = (float)fVar11;
-            //         if ((int)ROUND(fStack244) < 0)
-            //         {
-            //             iVar4 = 0;
-            //         }
-            //         else
-            //         {
-            //             fVar11 = (float10)FUN_005c8b40();
-            //             fStack244 = (float)fVar11;
-            //             if ((int)ROUND(fStack244) <= iVar4)
-            //             {
-            //                 fVar11 = (float10)FUN_005c8b40();
-            //                 fStack244 = (float)fVar11;
-            //                 iVar4 = (int)ROUND(fStack244);
-            //             }
-            //         }
-            //         local_f0 = (short)iVar4;
-            //         if (0 < (short)*(ushort *)(param_1 + 4))
-            //         {
-            //             uVar8 = (uint) * (ushort *)(param_1 + 4);
-            //             do
-            //             {
-            //                 iVar4 = (int)(short)iVar4 / (int)stage;
-            //                 local_f0 = (short)iVar4;
-            //                 uVar8 = uVar8 - 1;
-            //             } while (uVar8 != 0);
-            //         }
-            //         local_f0 = local_f0 % stage;
-            //     }
-            //     else
-            //     {
-            //         local_f0 = FUN_005434c0();
-            //     }
-            // }
+            float vertex_shader_constants[38];
 
-            texture_stage = 0;
-            do {
-                short uVar8 = texture_stage;
-                auto sampler_stage_index = (int)texture_stage;
-                if ((int)sampler_stage_index < *(int *)((int)shader_data + 0x54)) {
-                    auto uVar2 = *(unsigned short *)((int)shader_data + 0x2a);
-                    auto fStack244 = (float)(unsigned int)uVar2;
-                    auto *pbVar10 = (std::uint8_t *)(uVar8 * 0xdc + *(int *)((int)shader_data + 0x58));
-                    short bitmap_type;
-                    if (texture_stage == 0) {
-                        bitmap_type = bitmap_type & 0xffff0000 | (unsigned int) * (unsigned short *)(0x005fc9d0 + (short)uVar2 * 2);
+            for(int i = 0; i < 4; i++) {
+                int sampler_stage_index = i;
+                if(shader_data->maps.count > sampler_stage_index) {
+                    float first_map_type = shader_data->first_map_type;
+                    auto *map = shader_data->maps.offset + sampler_stage_index;
+                    BitmapDataType bitmap_data_type;
+                    if(i == 0) {
+                        bitmap_data_type = *reinterpret_cast<BitmapDataType *>(0x005fc9d0 + static_cast<int>(round(first_map_type * 2)));
                     }
                     else {
-                        bitmap_type = 0;
+                        bitmap_data_type = BitmapDataType::BITMAP_DATA_TYPE_2D_TEXTURE;
                     }
-                    FUN_0051c060(texture_stage, bitmap_type, 0, local_f0);
 
-                    unsigned int Value;
-                    if ((bitmap_type == 0) && ((*pbVar10 & 4) != 0)) {
-                        uVar8 = 3;
-                        
-                        if ((*pbVar10 & 8) == 0) {
-                            if (texture_stage == 0) {
-                                Value = *(unsigned int *)(0x005fc9d8 + (short)uVar2 * 4);
+                    rasterizer_set_texture_bitmap(i, bitmap_data_type, 0, unknown_bitmap_data_val, map->map.tag_handle);
+
+                    D3DTEXTUREADDRESS u_texture_mode;
+                    D3DTEXTUREADDRESS v_texture_mode;
+                    D3DTEXTUREADDRESS alternative_mode = *reinterpret_cast<D3DTEXTUREADDRESS *>(0x005fc9d8 + static_cast<int>(round(first_map_type * 4)));
+                    if(bitmap_data_type == BitmapDataType::BITMAP_DATA_TYPE_2D_TEXTURE && map->flags.u_clamped) {
+                        u_texture_mode = D3DTADDRESS_CLAMP;
+                        if(map->flags.v_clamped) {
+                            v_texture_mode = D3DTADDRESS_CLAMP;
+                        }
+                        else {
+                            if(i == 0) {
+                                v_texture_mode = alternative_mode;
                             }
                             else {
-                                Value = 1;
+                                v_texture_mode = D3DTADDRESS_WRAP;
                             }
                         }
-                        else {
-                            Value = 3;
-                        }
-                    }
+                    } 
                     else {
-                        if (texture_stage == 0) {
-                            uVar8 = *(unsigned int *)(0x005fc9d8 + (short)uVar2 * 4);
+                        if(i == 0) {
+                            u_texture_mode = alternative_mode;
                         }
                         else {
-                            uVar8 = 1;
+                            u_texture_mode = D3DTADDRESS_WRAP;
                         }
-                        
-                        if (bitmap_type == 0) {
-                            if ((*pbVar10 & 8) == 0) {
-                                if (texture_stage == 0) {
-                                    Value = *(unsigned int *)(0x005fc9d8 + (short)uVar2 * 4);
+
+                        if(bitmap_data_type == BitmapDataType::BITMAP_DATA_TYPE_2D_TEXTURE) {
+                            if(map->flags.v_clamped) {
+                                v_texture_mode = D3DTADDRESS_CLAMP;
+                            }
+                            else {
+                                if(i == 0) {
+                                    v_texture_mode = alternative_mode;
                                 }
                                 else {
-                                    Value = 1;
+                                    v_texture_mode = D3DTADDRESS_WRAP;
                                 }
-                            }
-                            else {
-                                Value = 3;
                             }
                         }
                         else {
-                            if (texture_stage == 0) {
-                                Value = *(unsigned int *)(0x005fc9d8 + (short)uVar2 * 4);
+                            if(i == 0) {
+                                v_texture_mode = alternative_mode;
                             }
                             else {
-                                Value = 1;
+                                v_texture_mode = D3DTADDRESS_WRAP;
                             }
                         }
                     }
-                      
-                    device->SetSamplerState(sampler_stage_index, D3DSAMP_ADDRESSU, uVar8);
-                    device->SetSamplerState(sampler_stage_index, D3DSAMP_ADDRESSV, Value);
-                    if (texture_stage == 0) {
-                        uVar8 = *(unsigned int *)(0x005fc9d8 + (short)uVar2 * 4);
+
+                    device->SetSamplerState(sampler_stage_index, D3DSAMP_ADDRESSU, u_texture_mode);
+                    device->SetSamplerState(sampler_stage_index, D3DSAMP_ADDRESSV, v_texture_mode);
+
+                    if(i == 0) {
+                        u_texture_mode = alternative_mode;
                     }
                     else {
-                        uVar8 = 1;
+                        alternative_mode = D3DTADDRESS_WRAP;
                     }
-                     
-                    device->SetSamplerState(sampler_stage_index, D3DSAMP_ADDRESSW, uVar8);
+
+                    auto map_flags = *reinterpret_cast<std::uint32_t *>(&map->flags);
+
+                    device->SetSamplerState(sampler_stage_index, D3DSAMP_ADDRESSW, u_texture_mode);
                     device->SetSamplerState(sampler_stage_index, D3DSAMP_MAGFILTER, 2);
-                    device->SetSamplerState(sampler_stage_index, D3DSAMP_MINFILTER, 2 - (((*pbVar10 & 1) != 0) ? 1 : 0));
-                    device->SetSamplerState(sampler_stage_index, D3DSAMP_MIPFILTER, 2 - (((*pbVar10 & 1) != 0) ? 1 : 0));
+                    device->SetSamplerState(sampler_stage_index, D3DSAMP_MINFILTER, 2 - map->flags.unfiltered);
+                    device->SetSamplerState(sampler_stage_index, D3DSAMP_MIPFILTER, 2 - map->flags.unfiltered);
                 }
-                  
-                if (sampler_stage_index < *(int *)((int)shader_data + 0x54)) {
-                    if ((texture_stage < 1) && (*(short *)((int)shader_data + 0x2a) != 0) && !((*(int *)((int)shader_data + 0x54) <= (int)sampler_stage_index) || ((*(byte *)((int)shader_data + 0x29) & 8) == 0))) {
-                        vertex_shader_constants[sampler_stage_index * 8] = *reinterpret_cast<float *>(0x0075c624);
-                        vertex_shader_constants[sampler_stage_index * 8 + 1] = *reinterpret_cast<float *>(0x0075c628);
-                        vertex_shader_constants[sampler_stage_index * 8 + 2] = *reinterpret_cast<float *>(0x0075c62c);
-                        vertex_shader_constants[sampler_stage_index * 8 + 3] = 0.0f;
-                        vertex_shader_constants[sampler_stage_index * 8 + 4] = *reinterpret_cast<float *>(0x0075c630);
-                        vertex_shader_constants[sampler_stage_index * 8 + 5] = *reinterpret_cast<float *>(0x0075c634);
-                        vertex_shader_constants[sampler_stage_index * 8 + 6] = *reinterpret_cast<float *>(0x0075c638);
-                        vertex_shader_constants[sampler_stage_index * 8 + 7] = 0.0f;
-                    }
 
-                    float fStack228 = *(float *)(sampler_stage_index * 0xdc + 0x58 + *(int *)((int)shader_data + 0x58));
-                    int iVar6 = sampler_stage_index * 0xdc + *(int *)((int)shader_data + 0x58);
-                    float fStack232 = *(float *)(iVar6 + 0x54);
-                    if (texture_stage == 0) {
-                        if ((*(byte *)((int)shader_data + 0x29) & 0x40) != 0) {
-                            fStack232 = -(fStack232 * transparent_geometry_group[0x1e]);
-                            fStack228 = -(fStack228 * transparent_geometry_group[0x1e]);
-                        }
-                     
-                        if ((*(byte *)((int)shader_data + 0x29) & 8) == 0) {
-                            fStack232 = fStack232 * transparent_geometry_group[0xf];
-                            fStack228 = fStack228 * transparent_geometry_group[0x10];
+                auto maps_count = shader_data->maps.count;
+                if(sampler_stage_index < maps_count) {
+                    if(i < 1 && shader_data->first_map_type != 0) {
+                        if(maps_count <= sampler_stage_index || shader_data->shader_transparent_chicago_flags.first_map_is_in_screenspace == 0) {
+                            vertex_shader_constants[sampler_stage_index * 8] = 1.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 1] = 0.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 2] = 0.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 4] = 0.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 5] = 1.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 6] = 0.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 3] = 0.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 7] = 0.0;
+                        } 
+                        else {
+                            vertex_shader_constants[sampler_stage_index * 8] = *reinterpret_cast<float *>(0x0075c624);
+                            vertex_shader_constants[sampler_stage_index * 8 + 1] = *reinterpret_cast<float *>(0x0075c628);
+                            vertex_shader_constants[sampler_stage_index * 8 + 2] = *reinterpret_cast<float *>(0x0075c62c);
+                            vertex_shader_constants[sampler_stage_index * 8 + 4] = *reinterpret_cast<float *>(0x0075c630);
+                            vertex_shader_constants[sampler_stage_index * 8 + 5] = *reinterpret_cast<float *>(0x0075c634);
+                            vertex_shader_constants[sampler_stage_index * 8 + 6] = *reinterpret_cast<float *>(0x0075c638);
+                            vertex_shader_constants[sampler_stage_index * 8 + 3] = 0.0;
+                            vertex_shader_constants[sampler_stage_index * 8 + 7] = 0.0;
                         }
                     }
-                    else if(texture_stage >= 1 || (*(byte *)((int)shader_data + 0x29) & 8) == 0) {
-                        fStack232 = fStack232 * transparent_geometry_group[0xf];
-                        fStack228 = fStack228 * transparent_geometry_group[0x10];
-                    }
+                    else {
+                        auto *map_elements = shader_data->maps.offset;
+                        auto map_v_scale = map_elements[sampler_stage_index].map_v_scale;
+                        auto map_u_scale = map_elements[sampler_stage_index].map_u_scale;
+                        if(i == 0) {
+                            if(shader_data->shader_transparent_chicago_flags.scale_first_map_with_distance) {
+                                map_u_scale = -(map_u_scale * transparent_geometry_group->field91_0x78);
+                                map_v_scale = -(map_v_scale * transparent_geometry_group->field91_0x78);
+                            }
 
-                    FUN_00543250(fStack232, fStack228, *(undefined4 *)(iVar6 + 0x5c), *(undefined4 *)(iVar6 + 0x60));
+                            if(shader_data->shader_transparent_chicago_flags.first_map_is_in_screenspace) {
+                                map_u_scale = map_u_scale * transparent_geometry_group->field46_0x3c;
+                                map_v_scale = map_v_scale * transparent_geometry_group->field47_0x40;
+                            }
+                        }
+                        else {
+                            if(i >= 1 || shader_data->shader_transparent_chicago_flags.first_map_is_in_screenspace) {
+                                map_u_scale = map_u_scale * transparent_geometry_group->field46_0x3c;
+                                map_v_scale = map_v_scale * transparent_geometry_group->field47_0x40;
+                            }
+                        }
+
+                        FUN_00543250(reinterpret_cast<std::byte *>(&map_elements[sampler_stage_index].u_animation_source), map_u_scale, map_v_scale, map_elements[sampler_stage_index].map_u_offset, map_elements[sampler_stage_index].map_v_offset, map_elements[sampler_stage_index].map_rotation, 0x0075c570, static_cast<unsigned int>(*transparent_geometry_group->field90_0x74), vertex_shader_constants + sampler_stage_index * 8, vertex_shader_constants + sampler_stage_index * 8 + 4);
+                    }
                 }
-            //       else
-            //       {
-            //           afStack172[sampler_stage_index * 8] = 1.0;
-            //           afStack172[sampler_stage_index * 8 + 1] = 0.0;
-            //           afStack172[sampler_stage_index * 8 + 2] = 0.0;
-            //           afStack172[sampler_stage_index * 8 + 3] = 0.0;
-            //           afStack172[sampler_stage_index * 8 + 4] = 0.0;
-            //           afStack172[sampler_stage_index * 8 + 5] = 1.0;
-            //           afStack172[sampler_stage_index * 8 + 6] = 0.0;
-            //           afStack172[sampler_stage_index * 8 + 7] = 0.0;
-            //       }
-                texture_stage = texture_stage + 1;
-            } while (texture_stage < 4);
+                else {
+                    vertex_shader_constants[sampler_stage_index * 8] = 1.0;
+                    vertex_shader_constants[sampler_stage_index * 8 + 1] = 0.0;
+                    vertex_shader_constants[sampler_stage_index * 8 + 2] = 0.0;
+                    vertex_shader_constants[sampler_stage_index * 8 + 4] = 0.0;
+                    vertex_shader_constants[sampler_stage_index * 8 + 5] = 1.0;
+                    vertex_shader_constants[sampler_stage_index * 8 + 6] = 0.0;
+                    
+                    vertex_shader_constants[sampler_stage_index * 8 + 3] = 0.0;
+                    vertex_shader_constants[sampler_stage_index * 8 + 7] = 0.0;
+                }
+            }
+
+            auto res = device->SetVertexShaderConstantF(13, vertex_shader_constants, 8);
+            if(res != D3D_OK) {
+                FUN_0053ae90(reinterpret_cast<std::byte *>(transparent_geometry_group->shader_tag_data));
+            }
         }
     }
 
