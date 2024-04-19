@@ -6,11 +6,12 @@
 FUN_00543160: .long 0x00543160
 FUN_0051be80: .long 0x0051be80
 FUN_005c8b40: .long 0x005c8b40
-FUN_0051c060: .long 0x0051c060
 FUN_00536740: .long 0x00536740
 FUN_005434c0: .long 0x005434c0
 FUN_00543250: .long 0x00543250
 FUN_0053ae90: .long 0x0053ae90
+FUN_00536550: .long 0x00536550
+FUN_0051c060: .long 0x0051c060
 
 .text
 
@@ -46,16 +47,6 @@ _FUN_005c8b40:
     add esp, 8
     ret
 
-.globl _FUN_0051c060
-_FUN_0051c060:
-    push [esp + 0x10]
-    push [esp + 0x10]
-    push [esp + 0x10]
-    push [esp + 0x10]
-    call dword ptr FUN_0051c060
-    add esp, 0x10
-    ret
-
 .globl _rasterizer_transparent_geometry_group_draw
 _rasterizer_transparent_geometry_group_draw:
     push [esp + 0x8]
@@ -72,9 +63,11 @@ _FUN_005434c0:
 
 .globl _FUN_00543250
 _FUN_00543250:
+    push ebp
+    mov ebp, esp
+    add ebp, 4
     pushad
     pushfd
-    add ebp, 4
     mov edi, [ebp + 0x28]
     mov ebx, [ebp + 0x24]
     mov ecx, [ebp + 0x20]
@@ -89,10 +82,38 @@ _FUN_00543250:
     add esp, 0x18
     popfd
     popad
+    pop ebp
     ret
 
 .globl _FUN_0053ae90
 _FUN_0053ae90:
     mov ebx, [esp + 4]
     call dword ptr FUN_0053ae90
+    ret
+
+.globl _FUN_00536550
+_FUN_00536550:
+    mov ecx, [esp + 4]
+    push [esp + 8]
+    call dword ptr FUN_00536550
+    add esp, 4
+    ret
+
+.globl _rasterizer_set_texture_bitmap
+_rasterizer_set_texture_bitmap:
+    push ebp
+    mov ebp, esp
+    add ebp, 4
+    pushad
+    pushfd
+    push [ebp + 0x10]
+    push [ebp + 0xC]
+    push [ebp + 8]
+    push [ebp + 4]
+    mov eax, [ebp + 0x14]
+    call dword ptr FUN_0051c060
+    add esp, 0x10
+    popfd
+    popad
+    pop ebp
     ret

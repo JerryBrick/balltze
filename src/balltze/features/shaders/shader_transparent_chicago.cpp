@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #include <cstdint>
+#include <cmath>
 #include <balltze/engine/renderer.hpp>
 #include <balltze/engine/tag.hpp>
 #include <balltze/engine/tag_definitions.hpp>
@@ -11,12 +12,10 @@
 #include "../../logger.hpp"
 
 namespace Balltze::Features {
-    using Engine::TagDefinitions::ShaderTransparentChicago;
-    using Engine::TagDefinitions::Bitmap;
-    using Engine::TagDefinitions::BitmapDataType;
+    using namespace Engine::TagDefinitions;
 
     struct TransparentGeometryGroup {
-        float field0_0x0;
+        std::uint32_t field0_0x0;
         struct TransparentGeometryGroup *field0_0x4;
         char field2_0x8;
         char field3_0x9;
@@ -62,8 +61,8 @@ namespace Balltze::Features {
         char field43_0x39;
         char field44_0x3a;
         char field45_0x3b;
-        float field46_0x3c;
-        float field47_0x40;
+        float map_u_coord;
+        float map_v_coord;
         char field48_0x44;
         char field49_0x45;
         char field50_0x46;
@@ -132,6 +131,8 @@ namespace Balltze::Features {
         void rasterizer_set_texture_bitmap(short texture_stage, BitmapDataType bitmap_type, short bitmap_data_index, short param_4, Engine::TagHandle bitmap_tag_handle);
 
         void FUN_0053ae90(std::byte *shader_data);
+
+        void FUN_00536550(TransparentGeometryGroup *group, bool param_2);
     
         void draw_shader_transparent_chicago(TransparentGeometryGroup *transparent_geometry_group, std::uint32_t *param_2) {
             if(!device) {
@@ -140,7 +141,7 @@ namespace Balltze::Features {
             
             auto *shader_data = reinterpret_cast<ShaderTransparentChicago *>(transparent_geometry_group->shader_tag_data);
             short unknown_type = FUN_00543160(shader_data);
-            
+
             short texture_stage = -1;
             if(transparent_geometry_group->field65_0x58 == nullptr) {
                 if(transparent_geometry_group->stage != -1) {
@@ -161,16 +162,22 @@ namespace Balltze::Features {
                 return;
             }
 
+            logger.debug("CHECKPOINT 0");
+
             device->SetVertexShader((IDirect3DVertexShader9 *)(0x00639248 + (*(short *)(0x00639450 + (unknown_type + texture_stage * 6) * 2) * 2)));
             device->SetVertexDeclaration((IDirect3DVertexDeclaration9 *)(0x0067ca50 + (texture_stage * 3)));
             device->SetPixelShader(nullptr);
             texture_stage = 0;
 
+            logger.debug("CHECKPOINT 1");
+
             for(int i = 0; i < shader_data->extra_layers.count; i++) {
                 TransparentGeometryGroup group_copy;
                 auto *extra_layer_elements = shader_data->extra_layers.offset;
                 memcpy(&group_copy, transparent_geometry_group, sizeof(TransparentGeometryGroup));
+                logger.debug("CHECKPOINT 2");
                 auto *extra_layer_shader_tag = Engine::get_tag(extra_layer_elements[i].shader.tag_handle);
+                logger.debug("CHECKPOINT 3");
                 if(extra_layer_shader_tag) {
                     group_copy.shader_tag_data = extra_layer_shader_tag->data;
                     rasterizer_transparent_geometry_group_draw(&group_copy, param_2);
@@ -227,7 +234,7 @@ namespace Balltze::Features {
                 }
             }
 
-            float vertex_shader_constants[38];
+            float vertex_shader_constants[8 * 4];
 
             for(int i = 0; i < 4; i++) {
                 int sampler_stage_index = i;
@@ -345,14 +352,14 @@ namespace Balltze::Features {
                             }
 
                             if(shader_data->shader_transparent_chicago_flags.first_map_is_in_screenspace) {
-                                map_u_scale = map_u_scale * transparent_geometry_group->field46_0x3c;
-                                map_v_scale = map_v_scale * transparent_geometry_group->field47_0x40;
+                                map_u_scale = map_u_scale * transparent_geometry_group->map_u_coord;
+                                map_v_scale = map_v_scale * transparent_geometry_group->map_v_coord;
                             }
                         }
                         else {
                             if(i >= 1 || shader_data->shader_transparent_chicago_flags.first_map_is_in_screenspace) {
-                                map_u_scale = map_u_scale * transparent_geometry_group->field46_0x3c;
-                                map_v_scale = map_v_scale * transparent_geometry_group->field47_0x40;
+                                map_u_scale = map_u_scale * transparent_geometry_group->map_u_coord;
+                                map_v_scale = map_v_scale * transparent_geometry_group->map_v_coord;
                             }
                         }
 
@@ -372,10 +379,191 @@ namespace Balltze::Features {
                 }
             }
 
-            auto res = device->SetVertexShaderConstantF(13, vertex_shader_constants, 8);
+            auto res = device->SetVertexShaderConstantF(13, vertex_shader_constants, sizeof(vertex_shader_constants) / 4);
             if(res != D3D_OK) {
                 FUN_0053ae90(reinterpret_cast<std::byte *>(transparent_geometry_group->shader_tag_data));
             }
+
+            auto maps_count = shader_data->maps.count;
+            if(transparent_geometry_group->field0_0x0 & 0x10 != 0 && shader_data->framebuffer_blend_function == FRAMEBUFFER_BLEND_FUNCTION_ALPHA_BLEND) {
+                device->SetTexture(maps_count, nullptr);
+                device->SetTextureStageState(maps_count, D3DTSS_COLOROP, D3DTOP_DISABLE);
+                device->SetTextureStageState(maps_count, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+                FUN_00536550(transparent_geometry_group, false);
+                device->SetRenderState(D3DRS_BLENDOP, 1);
+                return;
+            }
+
+            float vertex_shader_constants_2[3 * 4];
+            vertex_shader_constants_2[0] = 0.0f;
+            vertex_shader_constants_2[1] = 0.0f;
+            vertex_shader_constants_2[2] = 0.0f;
+            vertex_shader_constants_2[3] = 0.0f;
+            vertex_shader_constants_2[4] = 0.0f;
+            vertex_shader_constants_2[5] = 0.0f;
+            vertex_shader_constants_2[6] = 0.0f;
+            vertex_shader_constants_2[7] = 0.0f;
+            vertex_shader_constants_2[8] = 0.0f;
+            vertex_shader_constants_2[9] = 0.0f;
+            vertex_shader_constants_2[10] = 1.0f;
+            vertex_shader_constants_2[11] = 0.0f;
+
+            auto framebuffer_fade_source = shader_data->framebuffer_fade_source;
+            if(transparent_geometry_group->field10_0x14 == 1 && shader_data->extra_flags.dont_fade_active_camouflage == 0) {
+                vertex_shader_constants_2[10] = 1.0f - transparent_geometry_group->field13_0x18;
+                if(vertex_shader_constants_2[10] < 0.0f == std::isnan(vertex_shader_constants_2[10])) {
+                    if(vertex_shader_constants_2[10] > 1.0f) {
+                        vertex_shader_constants_2[10] = 1.0f;
+                    }
+                }
+                else {
+                    vertex_shader_constants_2[10] = 0.0f;
+                }
+            }
+
+            if(framebuffer_fade_source > 0 && transparent_geometry_group->field90_0x74 != nullptr && transparent_geometry_group->field90_0x74[1] != 0) {
+                auto unknown_val = *reinterpret_cast<float *>(transparent_geometry_group->field90_0x74[1] - 4 + framebuffer_fade_source * 4);
+                if(std::isnan(unknown_val) != unknown_val == 0.0f && *reinterpret_cast<std::uint32_t *>(0x0075c4ec) < 0xFFFF0101) {
+                    return;
+                }
+                vertex_shader_constants_2[10] = vertex_shader_constants_2[10] * unknown_val;
+            }
+
+            device->SetVertexShaderConstantF(10, vertex_shader_constants_2, 3);
+
+            int tss_option_argument;
+            if(framebuffer_fade_source == 0) {
+                tss_option_argument = D3DTA_ALPHAREPLICATE;
+            }
+            else if(framebuffer_fade_source == 1) {
+                tss_option_argument = D3DTA_ALPHAREPLICATE | D3DTA_SPECULAR;
+            }
+            else {
+                tss_option_argument = D3DTA_SPECULAR;
+            }
+
+            auto *unknown_val = reinterpret_cast<std::uint32_t *>(0x0075c4b8);
+            int stage = 0;
+            switch(shader_data->framebuffer_blend_function) {
+                case FRAMEBUFFER_BLEND_FUNCTION_ALPHA_BLEND: {
+                    if(*unknown_val == 2 && shader_data->maps.count > 1) {
+                        stage = shader_data->maps.count - 1;
+                        if(stage < 2) {
+                            stage = 1;
+                        }
+                        device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTA_TFACTOR);
+                        device->SetTextureStageState(0, D3DTSS_ALPHAARG2, tss_option_argument);
+                        break;
+                    }
+                    stage = shader_data->maps.count;
+                    device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG1, D3DTA_CURRENT);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAARG2, tss_option_argument);
+                    break;
+                }
+
+                case FRAMEBUFFER_BLEND_FUNCTION_MULTIPLY:
+                case FRAMEBUFFER_BLEND_FUNCTION_COMPONENT_MIN: {
+                    if(*unknown_val < 3) {
+                        stage = shader_data->maps.count - 1;
+                        if(stage < 2) {
+                            stage = 1;
+                        }
+                    }
+                    else {
+                        stage = shader_data->maps.count;
+                    }
+
+                    device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTOP_MULTIPLYADD);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG1, tss_option_argument | D3DTOP_BLENDCURRENTALPHA);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG2, D3DTA_CURRENT);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG0, tss_option_argument);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+                    break;
+                }
+
+                case FRAMEBUFFER_BLEND_FUNCTION_DOUBLE_MULTIPLY: {
+                    if(*unknown_val < 3) {
+                        stage = shader_data->maps.count - 1;
+                        if(stage < 2) {
+                            stage = 1;
+                        }
+                    }
+                    else {
+                        stage = shader_data->maps.count;
+                    }
+
+                    device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTOP_LERP);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG1, tss_option_argument);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG2, D3DTA_CURRENT);
+                    device->SetTextureStageState(stage, D3DTSS_COLORARG0, D3DTA_TFACTOR);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+                    device->SetTextureStageState(stage, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+                    break;
+                }
+
+                case FRAMEBUFFER_BLEND_FUNCTION_ADD:
+                case FRAMEBUFFER_BLEND_FUNCTION_SUBTRACT:
+                case FRAMEBUFFER_BLEND_FUNCTION_COMPONENT_MAX: {
+                    if(*unknown_val != 2 || shader_data->maps.count < 2) {
+                        stage = shader_data->maps.count;
+                        device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTOP_MODULATE);
+                        device->SetTextureStageState(stage, D3DTSS_COLORARG1, D3DTA_CURRENT);
+                        device->SetTextureStageState(stage, D3DTSS_COLORARG2, tss_option_argument);
+                        device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+                        device->SetTextureStageState(stage, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+                        break;
+                    }
+
+                    auto stage = shader_data->maps.count - 1;
+                    if(stage < 2) {
+                        stage = 1;
+                    }
+                    device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+                    device->SetTextureStageState(0, D3DTSS_COLORARG2, tss_option_argument);
+                    break;
+                }
+
+                case FRAMEBUFFER_BLEND_FUNCTION_ALPHA_MULTIPLY_ADD: {
+                    if(*unknown_val == 2 && shader_data->maps.count > 1) {
+                        stage = shader_data->maps.count - 1;
+                        if(stage < 2) {
+                            stage = 1;
+                        }
+                        device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+                        device->SetTextureStageState(0, D3DTSS_COLORARG2, tss_option_argument);
+                        device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+                    }
+                    else {
+                        stage = shader_data->maps.count;
+                        device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+                        device->SetTextureStageState(stage, D3DTSS_COLORARG1, D3DTA_CURRENT);
+                        device->SetTextureStageState(stage, D3DTSS_COLORARG2, tss_option_argument);
+                        device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+                        device->SetTextureStageState(stage, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+                    }
+                    device->SetTextureStageState(0, D3DTSS_ALPHAARG2, tss_option_argument);
+                    break;
+                }
+
+                default: {
+                    break;
+                }
+            }
+
+            stage = stage + 1;
+            device->SetTexture(stage, nullptr);
+            device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTA_CURRENT);
+            device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTA_CURRENT);
+            FUN_00536550(transparent_geometry_group, false);
+            device->SetRenderState(D3DRS_BLENDOP, D3DSHADE_FLAT);
+
+            logger.debug("Draw shader transparent chicago");
+
+            return;
         }
     }
 
@@ -406,8 +594,9 @@ namespace Balltze::Features {
         // Set up switch command
         register_command("use_shader_transparent_chicago_reimplementation", "features", "Use the reimplementation of the shader transparent chicago", std::nullopt, switch_command, true, 0, 1);
 
-        Event::D3D9BeginSceneEvent::subscribe([](Event::D3D9BeginSceneEvent &event) {
-            if(event.time == Event::EVENT_TIME_AFTER) {
+        Event::D3D9EndSceneEvent::subscribe([](Event::D3D9EndSceneEvent &event) {
+            if(!device) {
+                logger.debug("D3D9EndSceneEvent: device set");
                 device = event.args.device;
             }
         });
