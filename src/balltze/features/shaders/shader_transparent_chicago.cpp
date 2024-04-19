@@ -138,9 +138,13 @@ namespace Balltze::Features {
             if(!device) {
                 return;
             }
+
+            logger.debug("CHECKPOINT -3");
             
             auto *shader_data = reinterpret_cast<ShaderTransparentChicago *>(transparent_geometry_group->shader_tag_data);
             short unknown_type = FUN_00543160(shader_data);
+
+            logger.debug("CHECKPOINT -2");
 
             short texture_stage = -1;
             if(transparent_geometry_group->field65_0x58 == nullptr) {
@@ -151,6 +155,8 @@ namespace Balltze::Features {
             else {
                 texture_stage = *transparent_geometry_group->field65_0x58;
             }
+
+            logger.debug("CHECKPOINT -1");
 
             short local_f0 = transparent_geometry_group->field7_0x10;
             
@@ -164,7 +170,9 @@ namespace Balltze::Features {
 
             logger.debug("CHECKPOINT 0");
 
-            device->SetVertexShader((IDirect3DVertexShader9 *)(0x00639248 + (*(short *)(0x00639450 + (unknown_type + texture_stage * 6) * 2) * 2)));
+            auto **vertex_shaders = reinterpret_cast<IDirect3DVertexShader9 **>(0x00639248);
+            auto *unknown_vertex_shader_addr = reinterpret_cast<std::byte *>(0x00639450);
+            device->SetVertexShader(vertex_shaders[(*(short *)(unknown_vertex_shader_addr + (unknown_type + texture_stage * 6) * 2) * 2)]);
             device->SetVertexDeclaration((IDirect3DVertexDeclaration9 *)(0x0067ca50 + (texture_stage * 3)));
             device->SetPixelShader(nullptr);
             texture_stage = 0;
@@ -189,11 +197,15 @@ namespace Balltze::Features {
             device->SetRenderState(D3DRS_CULLMODE, ~(std::uint32_t)(flags >> 1) & 2 | 1);
             device->SetRenderState(D3DRS_COLORWRITEENABLE, 7);
             device->SetRenderState(D3DRS_ALPHABLENDENABLE, 1);
-            device->SetRenderState(D3DRS_ALPHATESTENABLE, flags & 1);
+            device->SetRenderState(D3DRS_ALPHATESTENABLE, shader_data->shader_transparent_chicago_flags.alpha_tested);
             device->SetRenderState(D3DRS_ALPHAREF, 0x7f);
             device->SetRenderState(D3DRS_FOGENABLE, 0);
 
+            logger.debug("CHECKPOINT 4");
+
             FUN_0051be80(shader_data->framebuffer_blend_function);
+
+            logger.debug("CHECKPOINT 5");
 
             int unknown_bitmap_data_val;
             if(flags < 0 && transparent_geometry_group->field90_0x74 != nullptr && shader_data->maps.count > 0) {
@@ -234,7 +246,11 @@ namespace Balltze::Features {
                 }
             }
 
+            logger.debug("CHECKPOINT 6");
+
             float vertex_shader_constants[8 * 4];
+
+            logger.debug("CHECKPOINT 7");
 
             for(int i = 0; i < 4; i++) {
                 int sampler_stage_index = i;
@@ -243,13 +259,17 @@ namespace Balltze::Features {
                     auto *map = shader_data->maps.offset + sampler_stage_index;
                     BitmapDataType bitmap_data_type;
                     if(i == 0) {
+                        logger.debug("CHECKPOINT 7.1");
                         bitmap_data_type = *reinterpret_cast<BitmapDataType *>(0x005fc9d0 + static_cast<int>(round(first_map_type * 2)));
+                        logger.debug("CHECKPOINT 7.2");
                     }
                     else {
                         bitmap_data_type = BitmapDataType::BITMAP_DATA_TYPE_2D_TEXTURE;
                     }
 
+                        logger.debug("CHECKPOINT 7.3");
                     rasterizer_set_texture_bitmap(i, bitmap_data_type, 0, unknown_bitmap_data_val, map->map.tag_handle);
+                        logger.debug("CHECKPOINT 7.4");
 
                     D3DTEXTUREADDRESS u_texture_mode;
                     D3DTEXTUREADDRESS v_texture_mode;
@@ -363,7 +383,23 @@ namespace Balltze::Features {
                             }
                         }
 
-                        FUN_00543250(reinterpret_cast<std::byte *>(&map_elements[sampler_stage_index].u_animation_source), map_u_scale, map_v_scale, map_elements[sampler_stage_index].map_u_offset, map_elements[sampler_stage_index].map_v_offset, map_elements[sampler_stage_index].map_rotation, 0x0075c570, static_cast<unsigned int>(*transparent_geometry_group->field90_0x74), vertex_shader_constants + sampler_stage_index * 8, vertex_shader_constants + sampler_stage_index * 8 + 4);
+                        logger.debug("CHECKPOINT 7.5");
+                        auto &map = map_elements[sampler_stage_index];
+                        auto *animation_data = reinterpret_cast<std::byte *>(&map.u_animation_source);
+                        auto map_u_offset = map.map_u_offset;
+                        auto map_v_offset = map.map_v_offset;
+                        auto map_rotation = map.map_rotation;
+                        FUN_00543250(animation_data, 
+                                    map_u_scale, 
+                                    map_v_scale, 
+                                    map_u_offset,
+                                    map_v_offset, 
+                                    map_rotation, 
+                                    *reinterpret_cast<float *>(0x0075c570), 
+                                    reinterpret_cast<unsigned int>(transparent_geometry_group->field90_0x74),
+                                    vertex_shader_constants + sampler_stage_index * 8, 
+                                    vertex_shader_constants + sampler_stage_index * 8 + 4);
+                        logger.debug("CHECKPOINT 7.8");
                     }
                 }
                 else {
@@ -379,10 +415,14 @@ namespace Balltze::Features {
                 }
             }
 
-            auto res = device->SetVertexShaderConstantF(13, vertex_shader_constants, sizeof(vertex_shader_constants) / 4);
+            logger.debug("CHECKPOINT 8");
+
+            auto res = device->SetVertexShaderConstantF(13, vertex_shader_constants, 8);
             if(res != D3D_OK) {
                 FUN_0053ae90(reinterpret_cast<std::byte *>(transparent_geometry_group->shader_tag_data));
             }
+
+            logger.debug("CHECKPOINT 9");
 
             auto maps_count = shader_data->maps.count;
             if(transparent_geometry_group->field0_0x0 & 0x10 != 0 && shader_data->framebuffer_blend_function == FRAMEBUFFER_BLEND_FUNCTION_ALPHA_BLEND) {
@@ -391,8 +431,12 @@ namespace Balltze::Features {
                 device->SetTextureStageState(maps_count, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
                 FUN_00536550(transparent_geometry_group, false);
                 device->SetRenderState(D3DRS_BLENDOP, 1);
+
+            logger.debug("CHECKPOINT 9.1");
                 return;
             }
+
+            logger.debug("CHECKPOINT 10");
 
             float vertex_shader_constants_2[3 * 4];
             vertex_shader_constants_2[0] = 0.0f;
@@ -421,6 +465,8 @@ namespace Balltze::Features {
                 }
             }
 
+            logger.debug("CHECKPOINT 11");
+
             if(framebuffer_fade_source > 0 && transparent_geometry_group->field90_0x74 != nullptr && transparent_geometry_group->field90_0x74[1] != 0) {
                 auto unknown_val = *reinterpret_cast<float *>(transparent_geometry_group->field90_0x74[1] - 4 + framebuffer_fade_source * 4);
                 if(std::isnan(unknown_val) != unknown_val == 0.0f && *reinterpret_cast<std::uint32_t *>(0x0075c4ec) < 0xFFFF0101) {
@@ -428,6 +474,8 @@ namespace Balltze::Features {
                 }
                 vertex_shader_constants_2[10] = vertex_shader_constants_2[10] * unknown_val;
             }
+
+            logger.debug("CHECKPOINT 12");
 
             device->SetVertexShaderConstantF(10, vertex_shader_constants_2, 3);
 
@@ -496,6 +544,7 @@ namespace Balltze::Features {
                         stage = shader_data->maps.count;
                     }
 
+                    device->SetRenderState(D3DRS_TEXTUREFACTOR, 0x7f7f7f7f);
                     device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTOP_LERP);
                     device->SetTextureStageState(stage, D3DTSS_COLORARG1, tss_option_argument);
                     device->SetTextureStageState(stage, D3DTSS_COLORARG2, D3DTA_CURRENT);
@@ -554,11 +603,15 @@ namespace Balltze::Features {
                 }
             }
 
+            logger.debug("CHECKPOINT 13");
+
             stage = stage + 1;
             device->SetTexture(stage, nullptr);
             device->SetTextureStageState(stage, D3DTSS_COLOROP, D3DTA_CURRENT);
             device->SetTextureStageState(stage, D3DTSS_ALPHAOP, D3DTA_CURRENT);
+            logger.debug("CHECKPOINT 14");
             FUN_00536550(transparent_geometry_group, false);
+            logger.debug("CHECKPOINT 15");
             device->SetRenderState(D3DRS_BLENDOP, D3DSHADE_FLAT);
 
             logger.debug("Draw shader transparent chicago");
