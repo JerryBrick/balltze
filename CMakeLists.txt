@@ -87,6 +87,8 @@ add_library(balltze SHARED
     src/balltze/event/widget.S
     src/balltze/features/gamepad_pause_button.cpp
     src/balltze/features/hud_button_prompts.cpp
+    src/balltze/features/hud_meters_fix.cpp
+    src/balltze/features/hud_meters_fix.S
     src/balltze/features/loading_screen/loading_screen.cpp
     src/balltze/features/loading_screen/loading_screen.S
     src/balltze/features/loading_screen/loading_screen.rc
