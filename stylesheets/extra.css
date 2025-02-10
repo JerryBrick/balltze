@@ -1,0 +1,14 @@
+:root {
+    --md-primary-fg-color: #0f5b8d;
+}
+
+.align-center-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.image-caption {
+    margin-top: 0.5rem;
+}
